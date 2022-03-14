@@ -11,4 +11,7 @@ RUN apt-get update
 RUN apt-get install -y ros-$ROS_DISTRO-fetch-gazebo-demo
 
 # Install vim for debugging purposes
-RUN apt-get install vim
+RUN apt-get install -y vim
+
+# Copy new fuel tool config because the old URL is wrong
+COPY ./fuel/config.yaml /usr/share/ignition/fuel_tools/
