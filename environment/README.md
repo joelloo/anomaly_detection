@@ -9,22 +9,32 @@
 ```bash
 $host:  docker build -t ros_melodic .
 ```
-2. Run the container and pipe display to docker host:
+
+## Using the ROS Melodic + Gazebo Environment
+1. Run the container and pipe display to docker host:
 ```bash
 $host: ./run.bash
 ```
-
+This command will launch Fetch in the Gazebo playground demo. 
+Note: The launch of Gazebo with playground environment will take a while. Please be patient.
 Note: There may be a need to recursively change the ownership of `/tmp/.docker.xauth/` to the user spinning up the container.
 
-3. Activate ros tools:
+2. Activate ros tools:
+`hook.bash` provides a convenient script to hook into the docker container's bash environment. Once inside, we can run additional code.
 ```bash
+$host: ./hook.bash
 $ros_melodic: source /opt/ros/melodic/setup.bash
+$ros_melodic: roslaunch fetch_moveit_config move_group.launch
 ```
 
-4. Launch the Fetch demo in container:
+3. Play the disco demo:
+In another terminal:
 ```bash
-$ros_melodic: roslaunch fetch_gazebo simulation.launch
+$host: ./hook.bash
+$ros_melodic: source /opt/ros/melodic/setup.bash
+$ros_melodic: python ~/sanity/disco.py
 ```
+We can use disco.py as an example to develop other ROS applications.
 
 ## Launching Rviz
 

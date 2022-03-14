@@ -15,3 +15,6 @@ RUN apt-get install -y vim
 
 # Copy new fuel tool config because the old URL is wrong
 COPY ./fuel/config.yaml /usr/share/ignition/fuel_tools/
+
+# Install joint state publisher gui dependency
+RUN apt-get install -y ros-melodic-joint-state-publisher-gui
