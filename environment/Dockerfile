@@ -6,6 +6,9 @@ ENV NVIDIA_VISIBLE_DEVICES \
 ENV NVIDIA_DRIVER_CAPABILITIES \
     ${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
 
-# Demo
-RUN sudo apt-get update
-RUN sudo apt-get install -y ros-$ROS_DISTRO-fetch-gazebo-demo
+# Fetch robot simulation
+RUN apt-get update
+RUN apt-get install -y ros-$ROS_DISTRO-fetch-gazebo-demo
+
+# Install vim for debugging purposes
+RUN apt-get install vim
