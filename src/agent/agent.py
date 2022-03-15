@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import rospy
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
