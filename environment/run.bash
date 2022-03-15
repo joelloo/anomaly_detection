@@ -22,6 +22,7 @@ docker run -it --rm \
     --env="XAUTHORITY=$XAUTH" \
     --volume="$XAUTH:$XAUTH" \
     --volume="$PARENTDIR/src/agent:/root/catkin_ws/src/agent/" \
+    --volume="$PARENTDIR/data:/root/data/" \
     --runtime=nvidia \
     --name=ros_melodic \
     ros_melodic \

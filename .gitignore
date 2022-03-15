@@ -1,1 +1,5 @@
+# Ignore python byte code
 *.pyc
+
+# Ignore data directory
+data
