@@ -16,5 +16,8 @@ RUN apt-get install -y vim
 # Copy new fuel tool config because the old URL is wrong
 COPY ./fuel/config.yaml /usr/share/ignition/fuel_tools/
 
+# Copy a different fetch initialization. This is hacky. Next time make our own launchable package
+COPY ./fetch/fetch.launch.xml /opt/ros/melodic/share/fetch_gazebo/launch/include/fetch.launch.xml
+
 # Install joint state publisher gui dependency
 RUN apt-get install -y ros-melodic-joint-state-publisher-gui
