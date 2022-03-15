@@ -20,6 +20,7 @@ docker run -it --rm \
     --env="XAUTHORITY=$XAUTH" \
     --volume="$XAUTH:$XAUTH" \
     --volume="$PWD/sanity:/root/sanity" \
+    --volume="$PWD/agent:/root/agent" \
     --runtime=nvidia \
     --name=ros_melodic \
     ros_melodic \
