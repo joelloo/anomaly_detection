@@ -11,6 +11,8 @@ then
     chmod a+r $XAUTH
 fi
 
+PARENTDIR="$(dirname $PWD)"
+
 xhost +
 
 docker run -it --rm \
@@ -20,7 +22,7 @@ docker run -it --rm \
     --env="XAUTHORITY=$XAUTH" \
     --volume="$XAUTH:$XAUTH" \
     --volume="$PWD/sanity:/root/sanity" \
-    --volume="$PWD/agent:/root/agent" \
+    --volume="$PARENTDIR/src/agent:/root/catkin_ws/src/agent/" \
     --runtime=nvidia \
     --name=ros_melodic \
     ros_melodic \
