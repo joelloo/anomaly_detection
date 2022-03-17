@@ -28,6 +28,7 @@ class Fetch(object):
 
         # Set directory to capture images
         self.capture_dir = capture_dir
+        self.record = False
 
     def look_at(self, x, y, z, frame, duration=1.0):
         """ Wrapper for looking at a position """
@@ -45,12 +46,16 @@ class Fetch(object):
             print(e)
 
         # Save cv_image with timestamp
-        filename = "%s.jpeg" % datetime.datetime.fromtimestamp(time.time()).isoformat()
-        cv2.imwrite(
-            os.path.join(self.capture_dir, filename),
-            cv_image
-        )
-        print("Image saved to %s." % filename)
+        if self.record:
+            filename = "%s.jpeg" % datetime.datetime.fromtimestamp(time.time()).isoformat()
+            cv2.imwrite(
+                os.path.join(self.capture_dir, filename),
+                cv_image
+            )
+            print("Image saved to %s." % filename)
+
+    def start_record(self):
+        self.record = True
 
 if __name__ == "__main__":
     rospy.init_node('fetch_image_collector', anonymous=True)
