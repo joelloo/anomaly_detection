@@ -21,3 +21,6 @@ COPY ./fetch/fetch.launch.xml /opt/ros/melodic/share/fetch_gazebo/launch/include
 
 # Install joint state publisher gui dependency
 RUN apt-get install -y ros-melodic-joint-state-publisher-gui
+
+# Add setup.bash activation
+RUN echo "source /opt/ros/melodic/setup.bash" >> /root/.bashrc
