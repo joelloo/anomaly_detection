@@ -33,20 +33,20 @@
   </group>
 
   <!-- localize the robot -->
-  <include file="$(arg amcl_include)" >
+  <!-- <include file="$(arg amcl_include)" >
     <arg name="scan_topic" value="$(arg scan_topic)" />
     <arg name="map_topic" value="$(arg map_topic)" />
     <arg name="use_map_topic" value="$(arg use_map_topic)" />
-  </include>
+  </include> -->
 
   <!-- move the robot -->
-  <include file="$(arg move_base_include)" >
+  <!-- <include file="$(arg move_base_include)" >
     <arg name="name" value="fetch" />
     <arg if="$(arg use_keepout)" name="map_topic" value="map_keepout" />
     <arg unless="$(arg use_keepout)" name="map_topic" value="$(arg map_topic)" />
     <arg name="cmd_vel_topic" value="$(arg cmd_vel_topic)" />
     <arg name="odom_topic" value="$(arg odom_topic)" />
-  </include>
+  </include> -->
 
   <!-- tilt the head -->
   <!-- <node pkg="fetch_navigation" type="tilt_head.py" name="tilt_head_node" /> -->

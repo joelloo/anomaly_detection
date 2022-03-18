@@ -26,4 +26,5 @@ docker run -it --rm \
     --runtime=nvidia \
     --name=ros_melodic \
     ros_melodic \
-    roslaunch fetch_gazebo playground.launch
+    bash
+    # roslaunch fetch_gazebo playground.launch

@@ -19,4 +19,7 @@
   <!-- Oh, you wanted a robot? -->
   <include file="$(find agent)/launch/fetch.launch.xml" />
 
+  <!-- Start moveit -->
+  <include file="$(find agent)/launch/move_group.launch" />
+
 </launch>
