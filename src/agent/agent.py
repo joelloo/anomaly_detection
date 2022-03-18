@@ -5,13 +5,14 @@ import cv2
 import time
 import datetime
 import rospy
+import argparse
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 from clients import MoveBaseClient, FollowTrajectoryClient, PointHeadClient, GraspingClient
 
 class Fetch(object):
 
-    def __init__(self, start_x, start_y, start_theta, frame="map", capture_dir="/root/data/"):
+    def __init__(self, capture_dir="/root/data/"):
         # Setup clients
         self.base_client = MoveBaseClient()
         self.torso_client = FollowTrajectoryClient("torso_controller", ["torso_lift_joint"])
@@ -19,7 +20,6 @@ class Fetch(object):
         self.grasping_client = GraspingClient()
 
         # Move to start location
-        self.base_client.goto(start_x, start_y, start_theta, frame)
         self.grasping_client.tuck()
 
         # Setup camera subscriber
@@ -58,6 +58,23 @@ class Fetch(object):
         self.record = True
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--record", "-r", action="store_true")
+    args = parser.parse_args()
+
+    print(args.record)
     rospy.init_node('fetch_image_collector', anonymous=True)
-    agent = Fetch(3.0, 3.0, 0)
-    rospy.spin()
+    agent = Fetch()
+    if args.record:
+        agent.start_record()
+        rospy.spin()
+    else:
+        try:
+            while True:
+                agent.look_at(3.7, 2, 0.0, "map")
+                agent.look_at(3.7, 1, 0.0, "map")
+                agent.look_at(3.7, 3.18, -1.0, "map")
+        except KeyboardInterrupt as e:
+            print(e)
+        
+    
