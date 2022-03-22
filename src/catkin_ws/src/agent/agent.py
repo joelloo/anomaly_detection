@@ -1,8 +1,5 @@
 #!/usr/bin/python
 
-import sys
-import termios
-import tty
 import os
 import cv2
 import time
@@ -13,6 +10,8 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 from clients import MoveBaseClient, FollowTrajectoryClient, PointHeadClient, GraspingClient
 from multiprocessing import Lock
+
+from pdb import set_trace as bp
 
 from spawn import spawn, rearrange
 
@@ -44,6 +43,9 @@ class Fetch(object):
         """ Wrapper for translating to a position """
         self.base_client.goto(x, y, theta, frame)
 
+    def raise_torso(self, z):
+        """ Wrapper for raising the torso to a height """
+        self.torso_client.move_to([z, ])
 
     def save_image(self, prefix):
         self.lock.acquire()
@@ -61,14 +63,7 @@ class Fetch(object):
         """ Callback function for images seen by the head camera """
         self.lock.acquire()
         try:
-            image = self.bridge.imgmsg_to_cv2(data, "bgr8")
-            # Center crop image
-            w, h = 224, 224
-            center = image.shape / 2
-            x = center[1] - w/2
-            y = center[0] - h/2
-
-            self.latest_image = image[int(y):int(y+h), int(x):int(x+w)]
+            self.latest_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
 
         except CvBridgeError as e:
             print(e)
@@ -88,6 +83,7 @@ if __name__ == "__main__":
     print(args.record)
     rospy.init_node('fetch_image_collector', anonymous=True)
     agent = Fetch()
+    agent.raise_torso(0.3)
 
     # Spawn 10 random objects
     spawn(10)
@@ -95,21 +91,21 @@ if __name__ == "__main__":
     cv2.namedWindow("Test")
     count = 0
     while count < 20000:
-        key = cv2.waitKey(50)
+        key = cv2.waitKey(10)
         if key == ord('q'):
             break
 
         rearrange(10)
 
-        agent.look_at(3.7, 2, 0, "map")
+        agent.look_at(3.7, 2, -1, "map")
         agent.save_image("left2")
-        agent.look_at(3.7, 1, 0, "map")
+        agent.look_at(3.7, 1, -1, "map")
         agent.save_image("left1")
-        agent.look_at(3.7, 0, 0, "map")
+        agent.look_at(3.7, 0, -1, "map")
         agent.save_image("middle")
-        agent.look_at(3.7, -1, 0, "map")
+        agent.look_at(3.7, -1, -1, "map")
         agent.save_image("right1")
-        agent.look_at(3.7, -2, 0, "map")
+        agent.look_at(3.7, -2, -1, "map")
         agent.save_image("right2")
         count += 4
         print("Saved %d images" % count)
