@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import os
+import random
 import cv2
 import time
 import datetime
@@ -9,10 +10,11 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 from clients import MoveBaseClient, FollowTrajectoryClient, PointHeadClient, GraspingClient
 from multiprocessing import Lock
-
-from pdb import set_trace as bp
+import numpy as np
 
 from spawn import spawn, rearrange
+
+from pdb import set_trace as bp
 
 class Fetch(object):
 
@@ -44,6 +46,9 @@ class Fetch(object):
     def raise_torso(self, z):
         """ Wrapper for raising the torso to a height """
         self.torso_client.move_to([z, ])
+
+    def move_arm(self, pose):
+        self.grasping_client.move_arm(pose)
 
     def save_image(self, prefix):
         self.lock.acquire()
@@ -78,8 +83,23 @@ if __name__ == "__main__":
     # Spawn 10 random objects
     spawn(10)
 
+    poses = [
+        [-1, 0.0 , 1.4 , 0.8, 0, 0.8, np.random.uniform(-1, 1)],
+        [-0.2, 0.2 , 0.8 , 0, 0.8, 0.8, np.random.uniform(0.8, 1.2)],
+        [0, 0.0 , 0, 0.0, 0, 0.4, np.random.uniform(-1, 1)],
+        [0.2, 0.2, -0.8, 0, -0.8, 0.8, np.random.uniform(0.8, 1.2)],
+        [1, 0.0 , -1.4 , 0.8, 0, 0.8, np.random.uniform(-1, 1)],
+    ]
+
+    # Initialization position
+    agent.move_arm([1.32, 0, -1.4, 1.72, 0.0, 1.66, 0.0])
+    agent.move_arm([1.32, 0, -1.4, 0, 0.0, 0, 0.0])
+
+
     cv2.namedWindow("Test")
     count = 0
+    pose_counter = 4
+    pose_incre = -1
     while count < 20000:
         key = cv2.waitKey(10)
         if key == ord('q'):
@@ -88,15 +108,25 @@ if __name__ == "__main__":
         rearrange(10)
 
         agent.look_at(3.7, 2, -1, "map")
+        agent.move_arm(poses[pose_counter])
+        pose_counter += pose_incre
         agent.save_image("left2")
         agent.look_at(3.7, 1, -1, "map")
+        agent.move_arm(poses[pose_counter])
+        pose_counter += pose_incre
         agent.save_image("left1")
         agent.look_at(3.7, 0, -1, "map")
+        agent.move_arm(poses[pose_counter])
+        pose_counter += pose_incre
         agent.save_image("middle")
         agent.look_at(3.7, -1, -1, "map")
+        agent.move_arm(poses[pose_counter])
+        pose_counter += pose_incre
         agent.save_image("right1")
         agent.look_at(3.7, -2, -1, "map")
+        agent.move_arm(poses[pose_counter])
         agent.save_image("right2")
+        pose_incre *= -1
         count += 4
         print("Saved %d images" % count)
         

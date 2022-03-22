@@ -15,7 +15,7 @@ table_y_bound = (2.6, 3.4)
 # Model choices
 model_choices = [
     '/root/.gazebo/models/coke_can/model.sdf',
-    '/root/.gazebo/models/beer/model.sdf',
+    # '/root/.gazebo/models/beer/model.sdf',
     '/root/.gazebo/models/plastic_cup/model.sdf',
     '/root/.gazebo/models/bowl/model.sdf'
 ]
