@@ -3,3 +3,11 @@
 
 # Ignore data directory
 data
+
+# Ignore catkin build
+src/catkin_ws/build
+src/catkin_ws/devel
+src/catkin_ws/.catkin_workspace
+
+# Ignore gazebo models
+.gazebo_models
