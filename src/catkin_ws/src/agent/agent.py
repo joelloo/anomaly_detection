@@ -5,7 +5,6 @@ import cv2
 import time
 import datetime
 import rospy
-import argparse
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 from clients import MoveBaseClient, FollowTrajectoryClient, PointHeadClient, GraspingClient
@@ -33,7 +32,6 @@ class Fetch(object):
 
         # Set directory to capture images
         self.capture_dir = capture_dir
-        self.record = False
 
     def look_at(self, x, y, z, frame, duration=1.0):
         """ Wrapper for looking at a position """
@@ -70,17 +68,9 @@ class Fetch(object):
 
         self.lock.release()
 
-    def start_record(self):
-        self.record = True
-
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--record", "-r", action="store_true")
-    args = parser.parse_args()
-
-    print(args.record)
     rospy.init_node('fetch_image_collector', anonymous=True)
     agent = Fetch()
     agent.raise_torso(0.3)
