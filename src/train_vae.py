@@ -3,18 +3,24 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import datasets, transforms
 
+import os
 import argparse
 import numpy as np
 from tqdm import tqdm
 
 from models.vae import VariationalAutoencoder
-from datasets.datasets import GazeboSimDataset
+from datasets.datasets import GazeboSimDataset, load_all_datasets
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_dir", type=str, help="Path to dataset",
     default="/home/joel/normflow_data")
+parser.add_argument("--dataset_type", type=str, help="Pick which dataset to use: left, middle, right, all",
+    default="all")
 parser.add_argument("--model_dir", type=str, help="Path to save models",
     default="/home/joel/saved_models")
+
+args = parser.parse_args()
 
 ### Train convolutional variational autoencoder ###
 
@@ -33,14 +39,21 @@ device = torch.device('cuda' if torch.cuda.is_available() and enable_cuda else '
 vae = VariationalAutoencoder(device).to(device)
 
 # Load dataset
-train_dataset = GazeboSimDataset('/home/joel/Downloads/images-arm/data/middle')
+datasets_map = load_all_datasets(args.dataset_dir)
+
+if args.dataset_type is "all":
+    datasets_list = list(datasets_map.values())
+    train_dataset = torch.utils.data.ConcatDataset(datasets_list)
+else:
+    train_dataset = datasets_map[args.dataset_type]
+
 train_partition_len = int(np.floor(train_partition_fraction * len(train_dataset)))
 val_partition_len = len(train_dataset) - train_partition_len
 train_set, val_set = torch.utils.data.random_split(train_dataset, [train_partition_len, val_partition_len])
 
 train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True, drop_last=False)
 
-print("Loaded data.")
+print("Loaded data: ", args.dataset_type)
 print("Train set: ", len(train_set))
 print("Val set: ", len(val_set))
 
@@ -65,7 +78,7 @@ for epoch in range(n_epochs):
                        loss.item()))
     if epoch % 10 == 9:
         print(f'Saving checkpoint for epoch {epoch}...')
-        torch.save(vae.state_dict(), f'../../saved_models/{identifier_str}_e{epoch}.ckpt')
+        torch.save(vae.state_dict(), os.path.join(args.model_dir, f'{identifier_str}_e{epoch}.ckpt'))
 
 # Save the final checkpoint
-torch.save(vae.state_dict(), f'../../saved_models/{identifier_str}_e{epoch}.ckpt')
+torch.save(vae.state_dict(), os.path.join(f'{identifier_str}_e{epoch}.ckpt'))

@@ -24,7 +24,19 @@ class GazeboSimDataset(Dataset):
         image = read_image(img_path)
         if self.transform:
             image = self.transform(image)
-        return image
+        return image.float() / 255.0
+
+
+def load_all_datasets(path, transform=None):
+    subdirs = glob.glob(os.path.join(path, "*/"))
+    print("Loading datasets from ", subdirs)
+
+    datasets = {}
+    for subdir in subdirs:
+        name = os.path.basename(os.path.normpath(subdir))
+        datasets[name] = GazeboSimDataset(subdir, transform=transform)
+
+    return datasets
 
 # if __name__ == "__main__":
 #     print("Loading data")
