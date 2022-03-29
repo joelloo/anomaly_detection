@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import numpy as np
 import math
 
-from realnvp import Flow, LatentMaskedAffineCoupling, NormalisingFlow, MLP
+# from realnvp import Flow, LatentMaskedAffineCoupling, NormalisingFlow, MLP
 from pl_bolts.models.autoencoders.components import (
     resnet18_encoder,
     resnet18_decoder,
@@ -93,8 +93,8 @@ class VarDecoder(nn.Module):
 class VariationalAutoencoder(nn.Module):
     def __init__(self, device, flows = None, latent_size=64, kernel_size=5, img_height=32, channels=3):
         super().__init__()
-        self.encoder = VarEncoder(latent_size, kernel_size, img_height, channels)
-        self.decoder = VarDecoder(self.encoder.flattened_size, self.encoder.latent_img_height)
+        self.encoder = VarEncoder(latent_size, kernel_size, img_height, channels).to(device)
+        self.decoder = VarDecoder(self.encoder.flattened_size, self.encoder.latent_img_height).to(device)
         self.device = device
         self.flows = flows
         self.latent_size = latent_size
@@ -144,25 +144,25 @@ class VariationalAutoencoderResNet(nn.Module):
     def __init__(self, device, flows = None, latent_size=64, img_height=32, net_type='resnet18'):
         super().__init__()
 
-        if net_type is 'resnet18':
+        if net_type == 'resnet18':
             self.flattened_size = 512 # 512 is the output feature size of ResNet18 encoder
             self.latent_size = min(self.flattened_size, latent_size)
-            self.encoder = resnet18_encoder(first_conv=False, maxpool1=False)
-            self.decoder = resnet18_decoder(self.latent_size, img_height, first_conv=False, maxpool1=False)
+            self.encoder = resnet18_encoder(first_conv=False, maxpool1=False).to(device)
+            self.decoder = resnet18_decoder(self.latent_size, img_height, first_conv=False, maxpool1=False).to(device)
         else:
             self.flattened_size = 2048 # 2048 is the output feature size of a ResNet50 encoder
             self.latent_size = min(self.flattened_size, latent_size)
-            self.encoder = resnet50_encoder(first_conv=False, maxpool1=False)
-            self.decoder = resnet50_decoder(self.latent_size, img_height, first_conv=False, maxpool1=False)
+            self.encoder = resnet50_encoder(first_conv=False, maxpool1=False).to(device)
+            self.decoder = resnet50_decoder(self.latent_size, img_height, first_conv=False, maxpool1=False).to(device)
 
         print("Initialising VAE with latent size: ", self.latent_size)
 
         self.fc_mu = nn.Sequential(
             nn.Linear(self.flattened_size, self.latent_size, bias=True)
-        )
+        ).to(device)
         self.fc_sigma = nn.Sequential(
             nn.Linear(self.flattened_size, self.latent_size, bias=True)
-        )
+        ).to(device)
 
         self.device = device
         self.flows = flows
