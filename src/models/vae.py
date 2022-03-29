@@ -6,6 +6,12 @@ import numpy as np
 import math
 
 from realnvp import Flow, LatentMaskedAffineCoupling, NormalisingFlow, MLP
+from pl_bolts.models.autoencoders.components import (
+    resnet18_encoder,
+    resnet18_decoder,
+    resnet50_encoder,
+    resnet50_decoder,
+)
 
 class VarEncoder(nn.Module):
     def __init__(self, latent_size=64, kernel_size=5, img_height=32, channels=3):
@@ -132,3 +138,82 @@ class VariationalAutoencoder(nn.Module):
             z, _ = self.flows(z)
         im = self.decoder(z)
         return im
+
+
+class VariationalAutoencoderResNet(nn.Module):
+    def __init__(self, device, flows = None, latent_size=64, img_height=32, net_type='resnet18'):
+        super().__init__()
+
+        if net_type is 'resnet18':
+            self.flattened_size = 512 # 512 is the output feature size of ResNet18 encoder
+            self.latent_size = min(self.flattened_size, latent_size)
+            self.encoder = resnet18_encoder(first_conv=False, maxpool1=False)
+            self.decoder = resnet18_decoder(self.latent_size, img_height, first_conv=False, maxpool1=False)
+        else:
+            self.flattened_size = 2048 # 2048 is the output feature size of a ResNet50 encoder
+            self.latent_size = min(self.flattened_size, latent_size)
+            self.encoder = resnet50_encoder(first_conv=False, maxpool1=False)
+            self.decoder = resnet50_decoder(self.latent_size, img_height, first_conv=False, maxpool1=False)
+
+        print("Initialising VAE with latent size: ", self.latent_size)
+
+        self.fc_mu = nn.Sequential(
+            nn.Linear(self.flattened_size, self.latent_size, bias=True)
+        )
+        self.fc_sigma = nn.Sequential(
+            nn.Linear(self.flattened_size, self.latent_size, bias=True)
+        )
+
+        self.device = device
+        self.flows = flows
+
+    def forward(self, x):
+        # Variational encoder
+        y = self.encoder(x)
+        mu = self.fc_mu(y)
+        sigma = torch.exp(self.fc_sigma(y)) + 1e-7
+
+        # Reparameterized sampling
+        z0 = self.reparameterize(mu, sigma)
+
+        # Normalising flow
+        if self.flows is None:
+            zk = z0
+            var_loss = -0.5 * torch.sum(1 + torch.log(sigma) - mu.pow(2) - sigma)
+        else:
+            log_pi = torch.log(torch.tensor(2 * np.pi))
+            log_sigma = torch.log(sigma)
+            
+            assert(not torch.any(torch.isnan(log_sigma)))
+            assert(not torch.any(torch.isnan(z0)))
+            assert(not torch.any(torch.isnan(mu)))
+            
+            log_prob_z0 = torch.sum(
+                -0.5 * log_pi - log_sigma - 0.5 * ((z0 - mu) / sigma) ** 2, 
+                axis=1)
+            
+            zk, log_det = self.flows(z0)
+            log_prob_zk = torch.sum(-0.5 * log_pi - 0.5 * (zk**2), axis=1)
+            
+            var_loss = torch.mean(log_prob_z0) - torch.mean(log_prob_zk) - torch.mean(log_det)
+
+        # Decoder
+        im = self.decoder(zk)            
+
+        return im, mu, sigma, var_loss
+
+    def reparameterize(self, mu, sigma):
+        epsilon = torch.randn_like(mu, device=self.device)
+        z = mu + sigma * epsilon
+        return z
+    
+    def sample(self, batch_size):
+        # Sample from N(0, 1)
+        z = torch.randn((batch_size, self.latent_size), device=self.device)
+        if self.flows is not None:
+            z, _ = self.flows(z)
+        im = self.decoder(z)
+        return im
+
+
+    
