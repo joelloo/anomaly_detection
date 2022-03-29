@@ -8,7 +8,7 @@ import argparse
 import numpy as np
 from tqdm import tqdm
 
-from models.vae import VariationalAutoencoder
+from models.vae import VariationalAutoencoder, VariationalAutoencoderResNet
 from datasets.datasets import GazeboSimDataset, load_all_datasets
 
 
@@ -36,7 +36,8 @@ enable_cuda = True
 device = torch.device('cuda' if torch.cuda.is_available() and enable_cuda else 'cpu')
 
 # Instantiate a variational autoencoder
-vae = VariationalAutoencoder(device).to(device)
+# vae = VariationalAutoencoder(device).to(device)
+vae = VariationalAutoencoderResNet(device, flows=None, latent_size=256, img_height=112, net_type='resnet18')
 
 # Load dataset
 datasets_map = load_all_datasets(args.dataset_dir)
@@ -63,7 +64,7 @@ recon_loss = nn.MSELoss(reduction='sum')
 
 for epoch in range(n_epochs):
     progressbar = tqdm(enumerate(train_loader), total=len(train_loader))
-    for batch_n, (x, n) in progressbar:
+    for batch_n, x in progressbar:
         x = x.to(device)
         optimizer.zero_grad()
         outputs, mu, sigma, var_loss = vae(x)
