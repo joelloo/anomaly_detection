@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from matplotlib import pyplot as plt
 import numpy as np
 import math
 
@@ -49,13 +48,16 @@ class LatentMaskedAffineCoupling(Flow):
 
 
 class NormalisingFlow(nn.Module):
-    def __init__(self, flows, prior, device):
+    def __init__(self, flows, prior, device, first_linear=None):
         super().__init__()
         self.flows = nn.ModuleList(flows)
         self.prior = prior # Target distribution to be approximated
         self.device = device
+        self.fc_latent_space = first_linear # Converts from encoder output to desired latent space (if our latent space is smaller than encoder's output)
         
     def forward(self, z):
+        if self.fc_latent_space:
+            z = self.fc_latent_space(z)
         log_det = torch.zeros(z.shape, device=self.device)
         for flow in self.flows:
             z, local_log_det = flow(z)
