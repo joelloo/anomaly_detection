@@ -10,11 +10,11 @@ from datasets.datasets import load_all_datasets
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_dir", type=str, help="Path to dataset",
-    default="/home/joel/normflow_data")
+    default="data")
 parser.add_argument("--dataset_type", type=str, help="Pick which dataset to use: left, middle, right, all",
     default="all")
 parser.add_argument("--model_dir", type=str, help="Path to save models",
-    default="/home/joel/source/saved_models")
+    default="trained_models")
 
 args = parser.parse_args()
 
@@ -37,9 +37,11 @@ from pl_bolts.models.autoencoders import AE
 ae = AE(input_height=112, enc_type='resnet18').to(device)
 
 # Load the dataset
-datasets_map = load_all_datasets(args.dataset_dir)
+workdir = os.getcwd()
+full_model_dir = os.path.join(workdir, args.model_dir)
+datasets_map = load_all_datasets(os.path.join(workdir, args.dataset_dir))
 
-if args.dataset_type is "all":
+if args.dataset_type == "all":
     datasets_list = list(datasets_map.values())
     train_dataset = torch.utils.data.ConcatDataset(datasets_list)
 else:
@@ -75,9 +77,9 @@ for epoch in range(n_epochs):
                        100. * batch_n / len(train_loader),
                        loss.item()))
 
-    if epoch % 10 == 9:
+    if epoch % 10 == 0:
         print(f'Saving checkpoint for epoch {epoch}...')
-        torch.save(ae.state_dict(), os.path.join(args.model_dir, f'{identifier_str}_e{epoch}.ckpt'))
+        torch.save(ae.state_dict(), os.path.join(full_model_dir, f'{identifier_str}_e{epoch}.ckpt'))
 
 # Save the final checkpoint
-torch.save(ae.state_dict(), os.path.join(args.model_dir, f'{identifier_str}_e{epoch}.ckpt'))
+torch.save(ae.state_dict(), os.path.join(full_model_dir, f'{identifier_str}_e{epoch}.ckpt'))
