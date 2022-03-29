@@ -71,18 +71,27 @@ print("Val set: ", len(val_set))
 
 # Train the VAE
 optimizer =  torch.optim.Adam(vae.parameters(), lr=wandb.config['learning_rate'], weight_decay=wandb.config['weight_decay'])
-recon_loss = nn.MSELoss(reduction='sum')
+recon_loss = nn.MSELoss(reduction='mean')
 
 for epoch in range(wandb.config["epochs"]):
     progressbar = tqdm(enumerate(train_loader), total=len(train_loader))
+    run_recon_loss = 0.0
+    run_var_loss = 0.0
+
     for batch_n, x in progressbar:
         x = x.to(device)
         optimizer.zero_grad()
         outputs, mu, sigma, var_loss = vae(x)
-        loss = recon_loss(outputs, x) + var_loss
+        rloss = recon_loss(outputs, x)
+        loss = rloss + var_loss
+        
         loss.backward()
         optimizer.step()
         progressbar.update()
+
+        run_recon_loss += rloss
+        run_var_loss += var_loss
+
     progressbar.close()
     print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_n * len(x), len(train_loader.dataset),
@@ -90,7 +99,10 @@ for epoch in range(wandb.config["epochs"]):
                        loss.item()))
 
     if args.wandb_entity:
-        wandb.log({"loss": loss.item()})
+        wandb.log({
+            "avg_recon_loss": run_recon_loss / batch_n,
+            "avg_var_loss": run_var_loss / batch_n
+        })
                       
     if epoch % 10 == 9:
         print(f'Saving checkpoint for epoch {epoch}...')

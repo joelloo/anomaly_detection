@@ -75,12 +75,14 @@ loss_fn = nn.MSELoss()
 
 for epoch in range(wandb.config["epochs"]):
     progressbar = tqdm(enumerate(train_loader), total=len(train_loader))
+    run_loss = 0.0
     for batch_n, x in progressbar:
         x = x.to(device)
         optimizer.zero_grad()
         z = ae(x)
         loss = loss_fn(z, x)
         loss.backward()
+        run_loss += loss.item()
         optimizer.step()
         progressbar.update()
     progressbar.close()
@@ -89,11 +91,14 @@ for epoch in range(wandb.config["epochs"]):
                        100. * batch_n / len(train_loader),
                        loss.item()))
 
-    wandb.log({"loss": loss.item()})
+    if args.wandb_entity:
+        wandb.log({"avg_recon_loss": run_loss / batch_n})
 
     if epoch % 10 == 0:
         print(f'Saving checkpoint for epoch {epoch}...')
         torch.save(ae.state_dict(), os.path.join(full_model_dir, f'{identifier_str}_e{epoch}.ckpt'))
+        if args.wandb_entity:
+            wandb.log_artifact(os.path.join(full_model_dir, f'{identifier_str}_e{epoch}.ckpt'), name=f'ae-e{epoch}', type='ae-models') 
 
 # Save the final checkpoint
 torch.save(ae.state_dict(), os.path.join(full_model_dir, f'{identifier_str}_e{epoch}.ckpt'))
