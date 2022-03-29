@@ -1,15 +1,12 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torchvision import datasets, transforms
 
 import os
 import argparse
 import numpy as np
 from tqdm import tqdm
 
-from datasets.datasets import GazeboSimDataset, load_all_datasets
-
+from datasets.datasets import load_all_datasets
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_dir", type=str, help="Path to dataset",
