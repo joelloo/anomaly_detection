@@ -33,10 +33,11 @@ identifier_str = 'ae_v1'
 
 enable_cuda = True
 device = torch.device('cuda' if torch.cuda.is_available() and enable_cuda else 'cpu')
+print(device)
 
 # Instantiate a ResNet-based autoencoder
 from pl_bolts.models.autoencoders import AE
-ae = AE(input_height=224, enc_type='resnet18').to(device)
+ae = AE(input_height=112, enc_type='resnet18').to(device)
 
 # Load the dataset
 datasets_map = load_all_datasets(args.dataset_dir)

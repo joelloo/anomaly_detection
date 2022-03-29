@@ -3,10 +3,10 @@ import glob
 import torch
 from torch.utils.data import Dataset
 from torchvision import datasets
-from torchvision.transforms import Compose, CenterCrop, Resize
-from torchvision.io import read_image
+from torchvision.transforms import Compose, CenterCrop, Resize, ToTensor
 
-# import matplotlib.pyplot as plt
+from PIL import Image
+
 
 class GazeboSimDataset(Dataset):
     def __init__(self, img_dir, transform=None):
@@ -14,17 +14,17 @@ class GazeboSimDataset(Dataset):
         self.img_files = glob.glob(img_dir + "/*.jpeg")
         self.transform = None
         if transform is None:
-            self.transform = Compose([Resize(256), CenterCrop(224)])
+            self.transform = Compose([ToTensor(), Resize(128), CenterCrop(112)])
 
     def __len__(self):
         return len(self.img_files)
 
     def __getitem__(self, idx):
         img_path = os.path.join(self.img_dir, self.img_files[idx])
-        image = read_image(img_path)
+        image = Image.open(img_path)
         if self.transform:
             image = self.transform(image)
-        return image.float() / 255.0
+        return image
 
 
 def load_all_datasets(path, transform=None):
