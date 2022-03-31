@@ -241,6 +241,14 @@ class GraspingClient(object):
             if result.error_code.val == MoveItErrorCodes.SUCCESS:
                 return
 
+    def move_arm(self, pose):
+        joints = ["shoulder_pan_joint", "shoulder_lift_joint", "upperarm_roll_joint",
+                  "elbow_flex_joint", "forearm_roll_joint", "wrist_flex_joint", "wrist_roll_joint"]
+        while not rospy.is_shutdown():
+            result = self.move_group.moveToJointPosition(joints, pose, 0.02)
+            if result.error_code.val == MoveItErrorCodes.SUCCESS:
+                return
+                
 if __name__ == "__main__":
     # Create a node
     rospy.init_node("demo")

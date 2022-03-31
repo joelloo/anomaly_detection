@@ -21,9 +21,10 @@ docker run -it --rm \
     --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
     --env="XAUTHORITY=$XAUTH" \
     --volume="$XAUTH:$XAUTH" \
-    --volume="$PARENTDIR/src/agent:/root/catkin_ws/src/agent/" \
+    --volume="$PARENTDIR/src/catkin_ws:/root/catkin_ws/" \
     --volume="$PARENTDIR/data:/root/data/" \
+    --volume="$PARENTDIR/.gazebo_models/:/root/.gazebo/models" \
     --runtime=nvidia \
     --name=ros_melodic \
     ros_melodic \
-    roslaunch fetch_gazebo playground.launch
+    bash
