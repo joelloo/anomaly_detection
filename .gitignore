@@ -4,6 +4,7 @@
 # Ignore data directory
 data
 ood
+test-data
 
 # Ignore catkin build
 src/catkin_ws/build

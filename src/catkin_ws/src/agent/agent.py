@@ -100,7 +100,7 @@ if __name__ == "__main__":
     count = 0
     pose_counter = 4
     pose_incre = -1
-    while count < 20000:
+    while count < 2000:
         key = cv2.waitKey(10)
         if key == ord('q'):
             break
