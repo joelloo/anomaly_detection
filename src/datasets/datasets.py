@@ -3,7 +3,7 @@ import glob
 import torch
 from torch.utils.data import Dataset
 from torchvision import datasets
-from torchvision.transforms import Compose, CenterCrop, Resize, ToTensor
+from torchvision.transforms import Compose, CenterCrop, Resize, ToTensor, Normalize
 
 from PIL import Image
 
@@ -14,7 +14,8 @@ class GazeboSimDataset(Dataset):
         self.img_files = glob.glob(img_dir + "/*.jpeg")
         self.transform = None
         if transform is None:
-            self.transform = Compose([ToTensor(), Resize(128), CenterCrop(112)])
+            normalize = Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            self.transform = Compose([ToTensor(), Resize(256), CenterCrop(224), normalize])
 
     def __len__(self):
         return len(self.img_files)
