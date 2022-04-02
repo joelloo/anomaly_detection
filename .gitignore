@@ -5,6 +5,7 @@
 data
 ood
 test-data
+masks
 
 # Ignore catkin build
 src/catkin_ws/build

@@ -13,7 +13,7 @@ import wandb
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_dir", type=str, help="Path to dataset",
-    default="data")
+    default="data/train")
 parser.add_argument("--dataset_type", type=str, help="Pick which dataset to use: left, middle, right, all",
     default="all")
 parser.add_argument("--model_dir", type=str, help="Path to save models",
@@ -30,7 +30,7 @@ train_partition_fraction = 1.0
 identifier_str = 'vae_v1'
 
 enable_cuda = True
-device = torch.device('cuda:1' if torch.cuda.is_available() and enable_cuda else 'cpu')
+device = torch.device('cuda:0' if torch.cuda.is_available() and enable_cuda else 'cpu')
 
 # Instantiate a variational autoencoder
 # vae = VariationalAutoencoder(device).to(device)
@@ -48,7 +48,7 @@ if args.wandb_entity:
 
 wandb.config = {
   "learning_rate": 1e-4,
-  "epochs": 20,
+  "epochs": 10,
   "batch_size": 64,
   "weight_decay": 1e-4
 }
@@ -104,11 +104,11 @@ for epoch in range(wandb.config["epochs"]):
             "avg_var_loss": run_var_loss / batch_n
         })
                       
-    if epoch % 10 == 9:
-        print(f'Saving checkpoint for epoch {epoch}...')
-        torch.save(vae.state_dict(), os.path.join(full_model_dir, f'{identifier_str}_e{epoch}.ckpt'))
-        if args.wandb_entity:
-            wandb.log_artifact(os.path.join(full_model_dir, f'{identifier_str}_e{epoch}.ckpt'), name=f'vanilla-vae-e{epoch}', type='vae-models') 
+    # Save for every epoch
+    print(f'Saving checkpoint for epoch {epoch}...')
+    torch.save(vae.state_dict(), os.path.join(full_model_dir, f'{identifier_str}_e{epoch}.ckpt'))
+    if args.wandb_entity:
+        wandb.log_artifact(os.path.join(full_model_dir, f'{identifier_str}_e{epoch}.ckpt'), name=f'vanilla-vae-e{epoch}', type='vae-models') 
 
 # Save the final checkpoint
-torch.save(vae.state_dict(), os.path.join(f'{identifier_str}_e{epoch}.ckpt'))
+torch.save(vae.state_dict(), os.path.join(full_model_dir, f'{identifier_str}_e{epoch}.ckpt'))

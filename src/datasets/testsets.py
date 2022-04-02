@@ -3,8 +3,6 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.transforms import Compose, CenterCrop, Resize, ToTensor
 
-from pdb import set_trace as bp
-
 class TestDataSet(Dataset):
     def __init__(self, data_dir="data/test", transforms=None):
         """ 
