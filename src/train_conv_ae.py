@@ -29,11 +29,11 @@ train_partition_fraction = 1.0
 identifier_str = 'ae_v1'
 
 enable_cuda = True
-device = torch.device('cuda' if torch.cuda.is_available() and enable_cuda else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() and enable_cuda else 'cpu')
 
 # Instantiate a ResNet-based autoencoder
 from pl_bolts.models.autoencoders import AE
-ae = AE(input_height=112, enc_type='resnet18').to(device)
+ae = AE(input_height=224, enc_type='resnet18').to(device)
 
 # Load the dataset
 workdir = os.getcwd()
@@ -42,14 +42,14 @@ datasets_map = load_all_datasets(os.path.join(workdir, args.dataset_dir))
 
 # Weights and biases logging
 if args.wandb_entity:
-    wandb.init(project="anomaly_detection", entity=args.wandb_entity)
+    wandb.init(project="anomaly_detection", entity=args.wandb_entity, name="Train AE")
     artifact = wandb.Artifact('autoencoder_models', type='models')
     artifact.add_dir(full_model_dir)
 
 wandb.config = {
   "learning_rate": 1e-4,
   "epochs": 10,
-  "batch_size": 64,
+  "batch_size": 32,
   "weight_decay": 1e-4
 }
 
@@ -92,7 +92,7 @@ for epoch in range(wandb.config["epochs"]):
                        loss.item()))
 
     if args.wandb_entity:
-        wandb.log({"avg_recon_loss": run_loss / batch_n})
+        wandb.log({"avg_recon_loss": run_loss / batch_n}, step=epoch)
 
     print(f'Saving checkpoint for epoch {epoch}...')
     torch.save(ae.state_dict(), os.path.join(full_model_dir, f'{identifier_str}_e{epoch}.ckpt'))
@@ -101,3 +101,5 @@ for epoch in range(wandb.config["epochs"]):
 
 # Save the final checkpoint
 torch.save(ae.state_dict(), os.path.join(full_model_dir, f'{identifier_str}_e{epoch}.ckpt'))
+if args.wandb_entity:
+        wandb.log_artifact(os.path.join(full_model_dir, f'{identifier_str}_e{epoch}.ckpt'), name=f'ae-e{epoch}', type='ae-models') 

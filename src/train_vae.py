@@ -1,26 +1,15 @@
+import os
+import wandb
 import torch
 import torch.nn as nn
-
-import os
-import argparse
 import numpy as np
 from tqdm import tqdm
 
 from models.vae import VariationalAutoencoderResNet
 from datasets.datasets import load_all_datasets
+from utils import construct_parser
 
-import wandb
-
-parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_dir", type=str, help="Path to dataset",
-    default="data/train")
-parser.add_argument("--dataset_type", type=str, help="Pick which dataset to use: left, middle, right, all",
-    default="all")
-parser.add_argument("--model_dir", type=str, help="Path to save models",
-    default="trained_models")
-parser.add_argument("--wandb_entity", "-e", type=str, help="Weights and Biases entity",
-    default=None)
-
+parser = construct_parser()
 args = parser.parse_args()
 
 ### Train convolutional variational autoencoder ###
@@ -34,7 +23,7 @@ device = torch.device('cuda:0' if torch.cuda.is_available() and enable_cuda else
 
 # Instantiate a variational autoencoder
 # vae = VariationalAutoencoder(device).to(device)
-vae = VariationalAutoencoderResNet(device, flows=None, latent_size=256, img_height=112, net_type='resnet18')
+vae = VariationalAutoencoderResNet(device, flows=None, latent_size=256, img_height=224, net_type='resnet18')
 
 # Load dataset
 workdir = os.getcwd()
@@ -43,13 +32,12 @@ datasets_map = load_all_datasets(os.path.join(workdir, args.dataset_dir))
 
 # Weights and biases logging
 if args.wandb_entity:
-    wandb.init(project="anomaly_detection", entity=args.wandb_entity)
+    wandb.init(project="anomaly_detection", entity=args.wandb_entity, name="Train VAE")
     
-
 wandb.config = {
   "learning_rate": 1e-4,
-  "epochs": 10,
-  "batch_size": 64,
+  "epochs": 20,
+  "batch_size": 32,
   "weight_decay": 1e-4
 }
 
@@ -102,7 +90,7 @@ for epoch in range(wandb.config["epochs"]):
         wandb.log({
             "avg_recon_loss": run_recon_loss / batch_n,
             "avg_var_loss": run_var_loss / batch_n
-        })
+        }, step=epoch)
                       
     # Save for every epoch
     print(f'Saving checkpoint for epoch {epoch}...')

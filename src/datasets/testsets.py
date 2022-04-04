@@ -1,7 +1,7 @@
 import os
 from PIL import Image
 from torch.utils.data import Dataset
-from torchvision.transforms import Compose, CenterCrop, Resize, ToTensor
+from torchvision.transforms import Compose, CenterCrop, Resize, ToTensor, Normalize
 
 class TestDataSet(Dataset):
     def __init__(self, data_dir="data/test", transforms=None):
@@ -17,7 +17,8 @@ class TestDataSet(Dataset):
             - ood
         """
         self.data_dir = data_dir
-        self.transforms = transforms if transforms else Compose([ToTensor(), Resize(128), CenterCrop(112)])
+        normalize = Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        self.transforms = transforms if transforms else Compose([ToTensor(), Resize(256), CenterCrop(224), normalize])
         
         # Identify all data
         self.labels = os.listdir(data_dir)

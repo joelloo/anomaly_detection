@@ -1,36 +1,40 @@
 import os
-import argparse
 import torch
 import torch.nn as nn
 import wandb
+import numpy as np
 
 from tqdm import tqdm
 
 from datasets.testsets import TestDataSet
 from models.vae import VariationalAutoencoderResNet
+from datasets.datasets import load_all_datasets
 
 from torchvision.utils import save_image
+from utils import construct_parser, find_threshold
 
 from pdb import set_trace as bp
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_dir", type=str, help="Path to dataset",
-    default="data/test")
-parser.add_argument("--dataset_type", type=str, help="Pick which dataset to use: left, middle, right, all",
-    default="all")
-parser.add_argument("--model_dir", type=str, help="Path to save models",
-    default="trained_models")
-parser.add_argument("--wandb_entity", "-e", type=str, help="Weights and Biases entity",
-    default=None)
-parser.add_argument("--model_type", type=str, help="Autoencoder or VAE",
-    default="vae")
-
+parser = construct_parser()
+parser.add_argument("--train_data", type=str, help="Directory for train data",
+        default="data/train")
+parser.add_argument("--model_type", type=str, help="model_type",
+        default="vae")
 args = parser.parse_args()
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 test_data = TestDataSet(data_dir=args.dataset_dir)
+workdir = os.getcwd()
+full_model_dir = os.path.join(workdir, args.model_dir)
+datasets_map = load_all_datasets(os.path.join(workdir, args.train_data))
 test_loader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=True, drop_last=False)
+
+if args.dataset_type == "all":
+    datasets_list = list(datasets_map.values())
+    train_dataset = torch.utils.data.ConcatDataset(datasets_list)
+else:
+    train_dataset = datasets_map[args.dataset_type]
 
 # Weights and biases logging
 if args.wandb_entity:
@@ -44,12 +48,12 @@ wandb.config = {
 model_types = ("vae", "ae")
 assert args.model_type in model_types, f"Model type should be {model_types}"
 if args.model_type == "vae":
-    model = VariationalAutoencoderResNet(device, flows=None, latent_size=256, img_height=112, net_type='resnet18')
+    model = VariationalAutoencoderResNet(device, flows=None, latent_size=256, img_height=224, net_type='resnet18')
     wandb.config["threshold"] = 0.03
 else:
     # Instantiate a ResNet-based autoencoder
     from pl_bolts.models.autoencoders import AE
-    model = AE(input_height=112, enc_type='resnet18').to(device)
+    model = AE(input_height=224, enc_type='resnet18').to(device)
     wandb.config["threshold"] = 0.01
 
 # Reconstruction loss for thresholding
@@ -60,8 +64,12 @@ for epoch in range(wandb.config["epochs"]):
     model_path = os.path.join(args.model_dir, f"{args.model_type}_v1_e{epoch}.ckpt")
     model.load_state_dict(torch.load(model_path))
 
+    threshold_mean, threshold_std = find_threshold(model, train_dataset, device, args.model_type)
+
     ood_losses = []
     ind_losses = []
+    predictions = []
+    true_labels = []
 
     for batch, data in tqdm(enumerate(test_loader), total=len(test_loader)):
         img, label = data
@@ -74,9 +82,12 @@ for epoch in range(wandb.config["epochs"]):
 
         loss = criterion(img, recon_img)
         mean_loss = loss.mean(dim=1)
-        map_tensor = (mean_loss > 0.05).type(torch.FloatTensor)
+        map_tensor = (mean_loss > threshold_mean + threshold_std).type(torch.FloatTensor)
 
-        save_image(map_tensor, f'masks/{args.model_type}-e{epoch}-{batch}.png')
+        bp()
+
+        save_image(map_tensor, f'images/masks/{args.model_type}/mask-e{epoch}-{batch}.png')
+        save_image(recon_img, f'images/recon/{args.model_type}/recon-e{epoch}-{batch}.png')
 
         # Concatenate losses for averaging later
         if label[0] == "ood":
@@ -84,9 +95,19 @@ for epoch in range(wandb.config["epochs"]):
         else:
             ind_losses.append(loss.mean().item())
 
+        # For calculating accuracies
+        predictions.append(loss.mean().item() > threshold_mean + threshold_std)
+        true_labels.append(label[0] == "ood")
+
+    predictions = np.asarray(predictions, dtype=int)
+    true_labels = np.asarray(true_labels, dtype=int)
+
+    acc = (predictions == true_labels).mean()
+    print(acc)
     if args.wandb_entity:
         wandb.log({
             "In Distribution Loss": sum(ood_losses)/len(ood_losses),
-            "Out of Distribution Loss": sum(ind_losses)/len(ind_losses)
+            "Out of Distribution Loss": sum(ind_losses)/len(ind_losses),
+            "Accuracy": acc
         }, step=epoch)
 
