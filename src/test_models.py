@@ -1,3 +1,4 @@
+import cv2
 import os
 import torch
 import torch.nn as nn
@@ -10,8 +11,10 @@ from datasets.testsets import TestDataSet
 from models.vae import VariationalAutoencoderResNet
 from datasets.datasets import load_all_datasets
 
-from torchvision.utils import save_image
+from torchvision.transforms import Compose, Normalize
 from utils import construct_parser, find_threshold
+
+import matplotlib.pyplot as plt
 
 from pdb import set_trace as bp
 
@@ -59,6 +62,11 @@ else:
 # Reconstruction loss for thresholding
 criterion = nn.MSELoss(reduction="none")
 
+UnNormalize = Compose([
+    Normalize(mean = [ 0., 0., 0. ], std = [ 1/0.229, 1/0.224, 1/0.225 ]),
+    Normalize(mean = [ -0.485, -0.456, -0.406 ], std = [ 1., 1., 1. ]),
+])
+
 for epoch in range(wandb.config["epochs"]):
     # Testing the performance of each model epoch
     model_path = os.path.join(args.model_dir, f"{args.model_type}_v1_e{epoch}.ckpt")
@@ -84,11 +92,6 @@ for epoch in range(wandb.config["epochs"]):
         mean_loss = loss.mean(dim=1)
         map_tensor = (mean_loss > threshold_mean + threshold_std).type(torch.FloatTensor)
 
-        bp()
-
-        save_image(map_tensor, f'images/masks/{args.model_type}/mask-e{epoch}-{batch}.png')
-        save_image(recon_img, f'images/recon/{args.model_type}/recon-e{epoch}-{batch}.png')
-
         # Concatenate losses for averaging later
         if label[0] == "ood":
             ood_losses.append(loss.mean().item())
@@ -98,6 +101,14 @@ for epoch in range(wandb.config["epochs"]):
         # For calculating accuracies
         predictions.append(loss.mean().item() > threshold_mean + threshold_std)
         true_labels.append(label[0] == "ood")
+
+        # Save every 50th image as reconstruction visualization
+        if batch % 50 == 0:
+            recon_img = UnNormalize(recon_img)
+            try:
+                plt.imsave(f"images/recon/{args.model_type}/recon-e{epoch}-{batch}.png", recon_img.detach().squeeze(0).permute(1,2,0).cpu().numpy())
+            except ValueError as e:
+                print(e)
 
     predictions = np.asarray(predictions, dtype=int)
     true_labels = np.asarray(true_labels, dtype=int)
