@@ -41,17 +41,20 @@ full_model_dir = os.path.join(workdir, args.model_dir)
 datasets_map = load_all_datasets(os.path.join(workdir, args.dataset_dir))
 
 # Weights and biases logging
-if args.wandb_entity:
-    wandb.init(project="anomaly_detection", entity=args.wandb_entity, name="Train AE")
-    artifact = wandb.Artifact('autoencoder_models', type='models')
-    artifact.add_dir(full_model_dir)
-
-wandb.config = {
+config = {
   "learning_rate": 1e-4,
-  "epochs": 10,
+  "epochs": 50,
   "batch_size": 32,
   "weight_decay": 1e-4
 }
+
+if args.wandb_entity:
+    wandb.init(
+        project="anomaly_detection", 
+        entity=args.wandb_entity, 
+        name="Train AE",
+        config=config
+    )
 
 if args.dataset_type == "all":
     datasets_list = list(datasets_map.values())
@@ -63,17 +66,17 @@ train_partition_len = int(np.floor(train_partition_fraction * len(train_dataset)
 val_partition_len = len(train_dataset) - train_partition_len
 train_set, val_set = torch.utils.data.random_split(train_dataset, [train_partition_len, val_partition_len])
 
-train_loader = torch.utils.data.DataLoader(train_set, batch_size=wandb.config["batch_size"], shuffle=True, drop_last=False)
+train_loader = torch.utils.data.DataLoader(train_set, batch_size=config["batch_size"], shuffle=True, drop_last=False)
 
 print("Loaded data.")
 print("Train set: ", len(train_set))
 print("Val set: ", len(val_set))
 
 # Train the AE
-optimizer =  torch.optim.Adam(ae.parameters(), lr=wandb.config["learning_rate"], weight_decay=wandb.config["weight_decay"])
+optimizer =  torch.optim.Adam(ae.parameters(), lr=config["learning_rate"], weight_decay=config["weight_decay"])
 loss_fn = nn.MSELoss()
 
-for epoch in range(wandb.config["epochs"]):
+for epoch in range(config["epochs"]):
     progressbar = tqdm(enumerate(train_loader), total=len(train_loader))
     run_loss = 0.0
     for batch_n, x in progressbar:
