@@ -118,7 +118,7 @@ for epoch in range(config["epochs"]):
                       
     # Save for every epoch
     print(f'Saving checkpoint for epoch {epoch}...')
-    torch.save(vae.state_dict(), os.path.join(full_model_dir, f'{identifier_str}_e{epoch}.ckpt'))
+    torch.save(vae.state_dict(), os.path.join(full_model_dir, f'{identifier_str}_e{epoch}_nf{args.num_flows}.ckpt'))
     if args.wandb_entity:
         wandb.log_artifact(os.path.join(full_model_dir, f'{identifier_str}_e{epoch}_nf{args.num_flows}.ckpt'), 
                 name=f'vanilla-vae-e{epoch}-nf{args.num_flows}', type=f'vae-models') 
