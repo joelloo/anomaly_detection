@@ -12,7 +12,7 @@ from models.vae import VariationalAutoencoderResNet
 from datasets.datasets import load_all_datasets
 
 from torchvision.transforms import Compose, Normalize
-from utils import construct_parser, find_threshold
+from utils import construct_parser, find_threshold, generate_rmse_loss_heatmap
 
 import matplotlib.pyplot as plt
 
@@ -40,22 +40,22 @@ else:
     train_dataset = datasets_map[args.dataset_type]
 
 config = {
-    "epochs": 10
+    "epochs": 50
 }
 
 # Weights and biases logging
 if args.wandb_entity:
-    wandb.init(project="anomaly_detection", entity=args.wandb_entity, config=config)
+    run = wandb.init(id="silver-eon-55", project="anomaly_detection", entity=args.wandb_entity, config=config, resume="allow")
 
 # Initialize model
 model_types = ("vae", "ae")
 assert args.model_type in model_types, f"Model type should be {model_types}"
-if args.model_type == "vae":
-    model = VariationalAutoencoderResNet(device, flows=None, latent_size=256, img_height=224, net_type='resnet18')
-else:
-    # Instantiate a ResNet-based autoencoder
-    from pl_bolts.models.autoencoders import AE
-    model = AE(input_height=224, enc_type='resnet18').to(device)
+# if args.model_type == "vae":
+#     model = VariationalAutoencoderResNet(device, flows=None, latent_size=256, img_height=224, net_type='resnet18')
+# else:
+#     # Instantiate a ResNet-based autoencoder
+#     from pl_bolts.models.autoencoders import AE
+#     model = AE(input_height=224, enc_type='resnet18').to(device)
 
 # Reconstruction loss for thresholding
 criterion = nn.MSELoss(reduction="none")
@@ -65,10 +65,27 @@ UnNormalize = Compose([
     Normalize(mean = [ -0.485, -0.456, -0.406 ], std = [ 1., 1., 1. ]),
 ])
 
-for epoch in range(config["epochs"]):
+for epoch in range(21, config["epochs"]):
+
+    if args.model_type == "vae":
+        model = VariationalAutoencoderResNet(device, flows=None, latent_size=256, img_height=224, net_type='resnet18')
+    else:
+        # Instantiate a ResNet-based autoencoder
+        from pl_bolts.models.autoencoders import AE
+        model = AE(input_height=224, enc_type='resnet18').to(device)
+    
     # Testing the performance of each model epoch
     model_path = os.path.join(args.model_dir, f"{args.model_type}_v1_e{epoch}.ckpt")
-    model.load_state_dict(torch.load(model_path))
+    # If model path don't exist, download from weights and biases
+    if not os.path.exists(os.path.join(os.getcwd(), model_path)):
+        if args.wandb_entity:
+            artifact = run.use_artifact(f'robot-anomaly-detection/anomaly_detection/{args.model_type}-e{epoch}:latest', type='ae-models')
+            artifact_dir = artifact.download()
+            model_path = os.path.join(artifact_dir, f'{args.model_type}_v1_e{epoch}.ckpt')
+        else:
+            raise RuntimeError(f"Unable to find models from {model_path}")
+
+    model.load_state_dict(torch.load(model_path, map_location=device))
 
     threshold_mean, threshold_std = find_threshold(model, train_dataset, device, args.model_type)
 
@@ -102,9 +119,12 @@ for epoch in range(config["epochs"]):
 
         # Save every 50th image as reconstruction visualization
         if batch % 50 == 0:
-            recon_img = UnNormalize(recon_img)
+            recon_img = UnNormalize(recon_img).detach().squeeze(0).permute(1,2,0).cpu().numpy()
+            img = UnNormalize(img).detach().squeeze(0).permute(1,2,0).cpu().numpy()
+            _, combine = generate_rmse_loss_heatmap(img, recon_img)
+            plt.imsave(f"images/heatmaps/{args.model_type}/map-e{epoch}-{batch}.png", combine)
             try:
-                plt.imsave(f"images/recon/{args.model_type}/recon-e{epoch}-{batch}.png", recon_img.detach().squeeze(0).permute(1,2,0).cpu().numpy())
+                plt.imsave(f"images/recon/{args.model_type}/recon-e{epoch}-{batch}.png", recon_img)
             except ValueError as e:
                 print(e)
 
@@ -119,4 +139,7 @@ for epoch in range(config["epochs"]):
             "Out of Distribution Loss": sum(ind_losses)/len(ind_losses),
             "Accuracy": acc
         }, step=epoch)
+
+    del model
+    torch.cuda.empty_cache()
 

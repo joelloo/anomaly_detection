@@ -29,7 +29,7 @@ train_partition_fraction = 1.0
 identifier_str = 'ae_v1'
 
 enable_cuda = True
-device = torch.device('cuda:1' if torch.cuda.is_available() and enable_cuda else 'cpu')
+device = torch.device('cuda:0' if torch.cuda.is_available() and enable_cuda else 'cpu')
 
 # Instantiate a ResNet-based autoencoder
 from pl_bolts.models.autoencoders import AE
@@ -50,10 +50,12 @@ config = {
 
 if args.wandb_entity:
     wandb.init(
+        id="ae-training",
         project="anomaly_detection", 
         entity=args.wandb_entity, 
         name="Train AE",
-        config=config
+        config=config,
+        resume="allow"
     )
 
 if args.dataset_type == "all":

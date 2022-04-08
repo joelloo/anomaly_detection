@@ -14,9 +14,9 @@ class GazeboSimDataset(Dataset):
         self.img_files = glob.glob(img_dir + "/*.jpeg")
         self.transform = None
         if transform is None:
-            # normalize = Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-            # self.transform = Compose([ToTensor(), Resize(256), CenterCrop(224), normalize])
-            self.transform = Compose([ToTensor(), Resize(128), CenterCrop(112)])
+            normalize = Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            self.transform = Compose([ToTensor(), Resize(256), CenterCrop(224), normalize])
+            # self.transform = Compose([ToTensor(), Resize(128), CenterCrop(112)])
 
     def __len__(self):
         return len(self.img_files)

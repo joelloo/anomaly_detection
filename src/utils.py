@@ -1,6 +1,10 @@
+import cv2
 import argparse
 import torch
 import torch.nn as nn
+
+import numpy as np
+import matplotlib.pyplot as plt
 
 from pdb import set_trace as bp
 
@@ -38,3 +42,18 @@ def find_threshold(model, dataset, device, model_type):
     threshold_mean = loss.mean().item()
     threshold_std = loss.std().item()
     return threshold_mean, threshold_std
+
+def generate_rmse_loss_heatmap(im_in, im_out):
+    sqdiff = (im_in - im_out)**2
+    rmse = np.sqrt(np.mean(sqdiff, axis=2))
+    rmse_cmap = plt.cm.jet(rmse)[:, :, :-1]
+    combined = cv2.addWeighted(rmse_cmap, 0.4, im_in.astype(np.float64), 0.6, 0.0)
+    return rmse, combined
+
+def visualise(axs, test_ims, recon_ims):
+    batch_size = test_ims.shape[0]
+    for i in range(batch_size):
+        axs[i, 0].imshow(test_ims[i])
+        axs[i, 1].imshow(recon_ims[i])
+        _, combined = generate_rmse_loss_heatmap(test_ims[i], recon_ims[i])
+        axs[i, 2].imshow(combined)

@@ -19,3 +19,4 @@ trained_models
 
 # Ignore Weights and Biases Meta Data
 wandb
+artifacts
