@@ -54,7 +54,7 @@ prior = torch.distributions.normal.Normal(loc=0.0, scale=1.0)
 
 # fc_adapter = nn.Linear(1000, n_bottleneck, bias=True)
 nf = NormalisingFlow(flows, prior, device, first_linear=None).to(device)
-vae = VariationalAutoencoderResNet(device, flows=nf, latent_size=256, img_height=224, net_type='resnet18')
+vae = VariationalAutoencoderResNet(device, flows=nf, latent_size=256, img_height=112, net_type='resnet18')
 
 # Weights and biases logging
 if args.wandb_entity:
@@ -120,7 +120,8 @@ for epoch in range(config["epochs"]):
     print(f'Saving checkpoint for epoch {epoch}...')
     torch.save(vae.state_dict(), os.path.join(full_model_dir, f'{identifier_str}_e{epoch}.ckpt'))
     if args.wandb_entity:
-        wandb.log_artifact(os.path.join(full_model_dir, f'{identifier_str}_e{epoch}.ckpt'), name=f'vanilla-vae-e{epoch}', type='vae-models') 
+        wandb.log_artifact(os.path.join(full_model_dir, f'{identifier_str}_e{epoch}_nf{args.num_flows}.ckpt'), 
+                name=f'vanilla-vae-e{epoch}-nf{args.num_flows}', type=f'vae-models') 
 
 # Save the final checkpoint
 torch.save(vae.state_dict(), os.path.join(full_model_dir, f'{identifier_str}_e{epoch}.ckpt'))
