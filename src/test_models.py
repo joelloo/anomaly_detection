@@ -40,7 +40,7 @@ else:
     train_dataset = datasets_map[args.dataset_type]
 
 config = {
-    "epochs": 10
+    "epochs": 50
 }
 
 # Weights and biases logging

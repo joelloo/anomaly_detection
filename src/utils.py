@@ -15,6 +15,10 @@ def construct_parser():
         default="trained_models")
     parser.add_argument("--wandb_entity", "-e", type=str, help="Weights and Biases entity",
         default=None)
+    parser.add_argument("--num_flows", "-nf", type=int, help="Number of normalising flows",
+        default=0)
+    parser.add_argument("--cuda", type=int, help="GPU device number",
+        default=0)
     return parser
 
 def find_threshold(model, dataset, device, model_type):
