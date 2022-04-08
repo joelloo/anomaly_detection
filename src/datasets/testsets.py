@@ -17,8 +17,9 @@ class TestDataSet(Dataset):
             - ood
         """
         self.data_dir = data_dir
-        normalize = Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        self.transforms = transforms if transforms else Compose([ToTensor(), Resize(256), CenterCrop(224), normalize])
+        # normalize = Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        # self.transforms = transforms if transforms else Compose([ToTensor(), Resize(256), CenterCrop(224), normalize])
+        self.transforms = transforms if transforms else Compose([ToTensor(), Resize(128), CenterCrop(112)])
         
         # Identify all data
         self.labels = os.listdir(data_dir)
