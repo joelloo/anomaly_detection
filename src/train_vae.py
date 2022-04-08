@@ -6,8 +6,11 @@ import numpy as np
 from tqdm import tqdm
 
 from models.vae import VariationalAutoencoderResNet
+from models.realnvp import LatentMaskedAffineCoupling, NormalisingFlow, MLP
 from datasets.datasets import load_all_datasets
 from utils import construct_parser
+
+from pdb import set_trace as bp
 
 parser = construct_parser()
 args = parser.parse_args()
@@ -19,11 +22,7 @@ train_partition_fraction = 1.0
 identifier_str = 'vae_v1'
 
 enable_cuda = True
-device = torch.device('cuda:0' if torch.cuda.is_available() and enable_cuda else 'cpu')
-
-# Instantiate a variational autoencoder
-# vae = VariationalAutoencoder(device).to(device)
-vae = VariationalAutoencoderResNet(device, flows=None, latent_size=256, img_height=224, net_type='resnet18')
+device = torch.device(f'cuda:{args.cuda}' if torch.cuda.is_available() and enable_cuda else 'cpu')
 
 # Load dataset
 workdir = os.getcwd()
@@ -34,16 +33,37 @@ config = {
   "learning_rate": 1e-4,
   "epochs": 50,
   "batch_size": 32,
-  "weight_decay": 1e-4
+  "weight_decay": 1e-4,
+  "num_flows": args.num_flows,
+  "n_bottleneck": 256
 }
+
+# Instantiate a variational autoencoder
+# vae = VariationalAutoencoder(device).to(device)
+n_bottleneck = config["n_bottleneck"]
+b = torch.tensor(n_bottleneck // 2 * [0, 1] + n_bottleneck % 2 * [0])
+flows = []
+for i in range(args.num_flows):
+    st_net = MLP(config["n_bottleneck"], 1024, 3)
+    if i % 2 == 0:
+        flows += [LatentMaskedAffineCoupling(b, st_net)]
+    else:
+        flows += [LatentMaskedAffineCoupling(1 - b, st_net)]
+
+prior = torch.distributions.normal.Normal(loc=0.0, scale=1.0)
+
+# fc_adapter = nn.Linear(1000, n_bottleneck, bias=True)
+nf = NormalisingFlow(flows, prior, device, first_linear=None).to(device)
+vae = VariationalAutoencoderResNet(device, flows=nf, latent_size=256, img_height=224, net_type='resnet18')
 
 # Weights and biases logging
 if args.wandb_entity:
     wandb.init(
+        id=f"train-vae-nf{args.num_flows}",
         project="anomaly_detection", 
-        entity=args.wandb_entity, 
-        name="Train VAE",
-        config=config
+        entity=args.wandb_entity,
+        config=config,
+        resume="allow"
     )
 
 if args.dataset_type == "all":
@@ -77,7 +97,6 @@ for epoch in range(config["epochs"]):
         outputs, mu, sigma, var_loss = vae(x)
         rloss = recon_loss(outputs, x)
         loss = rloss + var_loss
-        
         loss.backward()
         optimizer.step()
         progressbar.update()
