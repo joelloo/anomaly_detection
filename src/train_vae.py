@@ -59,7 +59,7 @@ vae = VariationalAutoencoderResNet(device, flows=nf, latent_size=256, img_height
 # Weights and biases logging
 if args.wandb_entity:
     wandb.init(
-        id="train-vae-nf16",
+        id=f"train-vae-nf{args.num_flows}",
         project="anomaly_detection", 
         entity=args.wandb_entity,
         config=config,
