@@ -163,4 +163,20 @@ for n_flows in stats.keys():
 with open('classification.json', 'w') as fp:
     json.dump(classification_results, fp)
 
+fig, ax = plt.subplots(1,2)
+for num_flows in flow_lengths:
+    success_rates = classification_results[num_flows]
+    ood_success_rate = [success[0] for success in success_rates]
+    ind_success_rate = [success[1] for success in success_rates]
+    ax[0].plot(np.linspace(0.1, 1.5, 15), ood_success_rate, label=f"nf-{num_flows}")
+    ax[1].plot(np.linspace(0.1, 1.5, 15), ind_success_rate, label=f"nf-{num_flows}")
 
+ax[0].legend()
+ax[0].set_xlabel("Number of Std Dev")
+ax[0].set_ylabel("Accuracy")
+ax[0].title.set_text("OOD")
+ax[1].legend()
+ax[1].set_xlabel("Number of Std Dev")
+ax[1].title.set_text("IND")
+
+plt.show()
