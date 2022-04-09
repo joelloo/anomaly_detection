@@ -179,4 +179,4 @@ ax[1].legend()
 ax[1].set_xlabel("Number of Std Dev")
 ax[1].title.set_text("IND")
 
-plt.show()
+plt.savefig("output.png")
