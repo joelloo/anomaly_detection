@@ -1,4 +1,5 @@
 import os
+import json
 import torch
 import torch.nn as nn
 import wandb
@@ -10,9 +11,10 @@ from datasets.testsets import TestDataSet
 from models.vae import VariationalAutoencoderResNet
 from models.realnvp import MLP, LatentMaskedAffineCoupling, NormalisingFlow
 from datasets.datasets import load_all_datasets
-from utils import construct_parser, find_threshold, generate_rmse_loss_heatmap
+from utils import construct_parser, visualise
 
 from pdb import set_trace as bp
+# Require models to be saved to weights and biases
 
 # Parsing arguments
 parser = construct_parser()
@@ -43,27 +45,37 @@ config = {
     "n_bottleneck": 256
 }
 
-# Weights and biases logging
-if args.wandb_entity:
-    run = wandb.init(project="anomaly_detection", entity=args.wandb_entity, config=config)
+# Weights and biases
+assert args.wandb_entity, "Please input weights and biases entity."
+run = wandb.init(project="anomaly_detection", entity=args.wandb_entity, config=config)
 
-# Check if model choice is valid and load model
-model_types = ("vae", "ae")
-assert args.model_type in model_types, f"Model type should be {model_types}"
+# Download artifacts for all num of flows
+flow_lengths = [2,16,32]
+model_paths = []
+for num_flows in flow_lengths:
+    artifact = run.use_artifact(
+        f'robot-anomaly-detection/anomaly_detection/vanilla-vae-e{args.load_epoch}-nf{num_flows}:latest',
+        type='vae-models'
+    )
+    artifact_dir = artifact.download()
+    model_paths.append(
+        os.path.join(
+            artifact_dir, 
+            f'vae_v1_e{args.load_epoch}_nf{num_flows}.ckpt'
+        )
+    )
 
-if args.model_type == "ae":
-    # Instantiate a ResNet-based autoencoder
-    from pl_bolts.models.autoencoders import AE
-    model = AE(input_height=112, enc_type='resnet18').to(device)
-elif args.num_flows == 0:
-    # Instantiate vanilla vae
-    model = VariationalAutoencoderResNet(device, flows=None, latent_size=256, img_height=112, net_type='resnet18')
-else:
-    # Instantiate vae with normalising flow
-    n_bottleneck = config["n_bottleneck"]
-    b = torch.tensor(n_bottleneck // 2 * [0, 1] + n_bottleneck % 2 * [0])
+# Instantiate vae with normalising flow
+n_bottleneck = config["n_bottleneck"]
+b = torch.tensor(n_bottleneck // 2 * [0, 1] + n_bottleneck % 2 * [0])
+
+# Reconstruction loss for thresholding
+criterion = nn.MSELoss(reduction="none")
+
+stats = dict()
+for num_flows, model_path in zip(flow_lengths, model_paths):
     flows = []
-    for i in range(args.num_flows):
+    for i in range(num_flows):
         st_net = MLP(config["n_bottleneck"], 1024, 3)
         if i % 2 == 0:
             flows += [LatentMaskedAffineCoupling(b, st_net)]
@@ -72,62 +84,83 @@ else:
 
     prior = torch.distributions.normal.Normal(loc=0.0, scale=1.0)
     nf = NormalisingFlow(flows, prior, device, first_linear=None).to(device)
-    vae = VariationalAutoencoderResNet(device, flows=nf, latent_size=256, img_height=112, net_type='resnet18')
+    model = VariationalAutoencoderResNet(device, flows=nf, latent_size=256, img_height=112, net_type='resnet18')
 
-# Reconstruction loss for thresholding
-criterion = nn.MSELoss(reduction="none")
+
+    model.load_state_dict(torch.load(model_path, map_location=device))
     
-# Testing the performance of each model epoch
-model_path = os.path.join(args.model_dir, f"{args.model_type}_v1_e{args.load_epoch}_nf{args.num_flow}.ckpt")
+    losses = {'ood':[], 'ind':[]}
+    for batch, data in tqdm(enumerate(test_loader), total=len(test_loader)):
+        img, label = data
+        img = img.to(device)
 
-# If model path don't exist, download from weights and biases
-if not os.path.exists(os.path.join(os.getcwd(), model_path)):
-    if args.wandb_entity:
-        artifact = run.use_artifact(
-            f'robot-anomaly-detection/anomaly_detection/{args.model_type}-e{args.load_epoch}:latest',
-            type=f'{args.model_type}-models'
-        )
-        artifact_dir = artifact.download()
-        model_path = os.path.join(artifact_dir, f'{args.model_type}_v1_e{args.load_epoch}_nf{args.num_flow}.ckpt')
-    else:
-        raise RuntimeError(f"Unable to find models from {model_path}")
-
-model.load_state_dict(torch.load(model_path, map_location=device))
-
-losses = {'ood':[], 'ind':[]}
-for batch, data in tqdm(enumerate(test_loader), total=len(test_loader)):
-    img, label = data
-    img = img.to(device)
-
-    if args.model_type == "vae":
         recon_img, _, _, _ = model(img)
-    else:
-        recon_img = model(img)
+        loss = criterion(recon_img, img)
 
-    bp()
-    # Save every 50th image as reconstruction visualization
-    if batch % 50 == 0:
-        recon_img = recon_img.detach().squeeze(0).permute(1,2,0).cpu().numpy()
-        img = img.detach().squeeze(0).permute(1,2,0).cpu().numpy()
-        _, combine = generate_rmse_loss_heatmap(img, recon_img)
-        plt.imsave(f"images/heatmaps/{args.model_type}/map-e{epoch}-{batch}.png", combine)
-        try:
-            plt.imsave(f"images/recon/{args.model_type}/recon-e{epoch}-{batch}.png", recon_img)
-        except ValueError as e:
-            print(e)
+        losses[label[0]].append(loss.mean().item())
 
-predictions = np.asarray(predictions, dtype=int)
-true_labels = np.asarray(true_labels, dtype=int)
+    # Select 4 images as reconstruction
+    indices = np.random.randint(len(test_data), size=4)
+    print("Images selected from: ", indices)
 
-acc = (predictions == true_labels).mean()
-print(acc)
-if args.wandb_entity:
-    wandb.log({
-        "In Distribution Loss": sum(ood_losses)/len(ood_losses),
-        "Out of Distribution Loss": sum(ind_losses)/len(ind_losses),
-        "Accuracy": acc
-    }, step=epoch)
+    test_ims = []
+    for index in indices:
+        img, label = test_data[index]
+        test_ims.append(img)
 
-del model
-torch.cuda.empty_cache()
+    test_ims = torch.stack(test_ims).to(device)
+    recon_ims, _, _, _ = model(test_ims)
+
+    test_ims_np = test_ims.cpu().detach().permute(0,2,3,1).numpy()
+    recon_ims_np = recon_ims.cpu().detach().permute(0,2,3,1).numpy()
+
+    fig, axs = plt.subplots(4, 3)
+    visualise(axs, test_ims_np, recon_ims_np)
+    plt.savefig(f"images/vae-nf{num_flows}.png")
+
+    ood_mean = np.mean(losses['ood'])
+    ood_std = np.std(losses['ood'])
+    ind_mean = np.mean(losses['ind'])
+    ind_std = np.std(losses['ind'])
+
+    stats[num_flows] = {'ood': (ood_mean, ood_std), 'ind': (ind_mean, ind_std)}
+
+with open('stats.json', 'w') as fp:
+    json.dump(stats, fp)
+
+# Produce classification results over a range of thresholds (based on standard deviation from mean)
+classification_results = dict()
+for n_flows in stats.keys():
+    model_stats = stats[n_flows]
+    ood_mean, ood_std = model_stats['ood']
+
+    success_rates = []
+    for threshold in np.linspace(0.1, 1.5, 15):
+        ood_loss_threshold = ood_mean - threshold * ood_std
+
+        results = {'ood': {'pass': 0, 'fail': 0}, 'ind': {'pass': 0, 'fail': 0}}
+        for label, loss_array in losses.items():
+            for loss in loss_array:
+                if loss > ood_loss_threshold:
+                    if label == 'ood':
+                        results['ood']['pass'] += 1
+                    else:
+                        results['ind']['fail'] += 1
+                else:
+                    if label == 'ood':
+                        results['ood']['fail'] += 1
+                    else:
+                        results['ind']['pass'] += 1
+
+        ood_success_rate = float(results['ood']['pass']) / float(results['ood']['pass'] + results['ood']['fail'])
+        ind_success_rate = float(results['ind']['pass']) / float(results['ind']['pass'] + results['ind']['fail'])
+        success_rates.append([ood_success_rate, ind_success_rate])
+
+        print(f'{n_flows} flows -- OOD rate: {ood_success_rate}, IND rate: {ind_success_rate}')
+
+    classification_results[n_flows] = success_rates
+
+with open('classification.json', 'w') as fp:
+    json.dump(classification_results, fp)
+
 
