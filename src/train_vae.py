@@ -33,11 +33,11 @@ config = {
   "epochs": 50,
   "batch_size": 32,
   "weight_decay": 1e-4,
-  "n_bottleneck": 256
+  "n_bottleneck": 64
 }
 
 # Instantiate a variational autoencoder
-vae = VariationalAutoencoderResNet(device, flows=None, latent_size=256, img_height=112, net_type='resnet18')
+vae = VariationalAutoencoderResNet(device, flows=None, latent_size=64, img_height=112, net_type='resnet18')
 
 # Weights and biases logging
 if args.wandb_entity:
@@ -102,7 +102,7 @@ for epoch in range(config["epochs"]):
     torch.save(vae.state_dict(), os.path.join(full_model_dir, f'{identifier_str}_e{epoch}.ckpt'))
     if args.wandb_entity:
         wandb.log_artifact(os.path.join(full_model_dir, f'{identifier_str}_e{epoch}.ckpt'), 
-                name=f'vanilla-vae-e{epoch}', type=f'vae-models') 
+                name=f'vanilla-vae-e{epoch}-b{config["n_bottleneck"]}', type=f'vae-models-bottleneck') 
 
 # Save the final checkpoint
 torch.save(vae.state_dict(), os.path.join(full_model_dir, f'{identifier_str}_e{epoch}.ckpt'))
